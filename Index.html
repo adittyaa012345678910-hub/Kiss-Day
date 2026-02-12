@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kiss Day 💋</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Sacramento&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{
+  margin:0;
+  overflow:hidden;
+  background:black;
+  font-family:'Sacramento', cursive;
+  color:white;
+}
+
+/* ================= FLOWERS ================= */
+.flower{
+  position:fixed;
+  pointer-events:none;
+  animation: drift linear infinite, glow 3s ease-in-out infinite;
+  transition: transform .2s ease;
+}
+
+@keyframes drift{
+  from{transform:translateY(100vh) rotate(0deg);}
+  to{transform:translateY(-10vh) rotate(360deg);}
+}
+
+@keyframes glow{
+  0%,100%{opacity:.4;}
+  50%{opacity:1;}
+}
+
+/* ================= START BUTTON ================= */
+#startBtn{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#ff4fa3;
+  border:none;
+  padding:14px 28px;
+  border-radius:30px;
+  font-size:28px;
+  color:white;
+  cursor:pointer;
+  box-shadow:0 0 20px #ff4fa3;
+}
+
+/* ================= CONSOLE ================= */
+#console{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  display:none;
+}
+
+#screen{
+  position:absolute;
+  left:18%;
+  top:18%;
+  width:64%;
+  height:64%;
+  overflow:hidden;
+}
+
+/* ================= GAME OBJECTS ================= */
+.kiss{
+  position:absolute;
+  width:40px;
+}
+
+#basket{
+  position:absolute;
+  bottom:10px;
+  width:90px;
+  left:50%;
+  transform:translateX(-50%);
+}
+
+#score{
+  position:absolute;
+  top:10px;
+  left:10px;
+  font-size:22px;
+}
+
+#miss{
+  position:absolute;
+  top:10px;
+  right:10px;
+  font-size:22px;
+}
+
+#result{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  display:none;
+  font-family:'Poppins', sans-serif;   /* ← ADD THIS LINE */
+}
+
+#result img{
+  width:240px;
+}
+
+#message{
+  font-size:30px;
+  margin-top:12px;
+  font-weight:600;
+}
+</style>
+</head>
+
+<body>
+
+<button id="startBtn">Kiss ?? 💋</button>
+
+<div id="flowers"></div>
+
+<div id="console">
+<img src="console.png" width="700">
+<div id="screen">
+<div id="score">💋 0</div>
+<div id="miss">Miss 0</div>
+<img id="basket" src="basket.png">
+</div>
+</div>
+
+<div id="result">
+<img id="face">
+<div id="message"></div>
+<div id="finalScore" style="font-size:22px;margin-top:8px;"></div>
+</div>
+
+<audio id="catchSound" src="catch.mp3"></audio>
+<audio id="missSound" src="miss.mp3"></audio>
+
+<script>
+/* ================= FLOWERS ================= */
+const flowerContainer=document.getElementById("flowers");
+let flowers=[];
+
+for(let i=0;i<40;i++){
+  const f=document.createElement("img");
+  f.src="flower.png";
+  f.className="flower";
+  f.style.left=Math.random()*100+"vw";
+  f.style.width=(12+Math.random()*18)+"px";
+  f.style.opacity=Math.random();
+  f.style.animationDuration=(12+Math.random()*18)+"s";
+  flowerContainer.appendChild(f);
+  flowers.push(f);
+}
+
+/* Cursor interaction */
+document.addEventListener("mousemove",e=>{
+  flowers.forEach(f=>{
+    const dx=e.clientX-f.offsetLeft;
+    const dy=e.clientY-f.offsetTop;
+    const d=Math.sqrt(dx*dx+dy*dy);
+    if(d<80){
+      f.style.transform="scale(1.6)";
+    }else{
+      f.style.transform="scale(1)";
+    }
+  });
+});
+
+/* Avoid flowers near game box */
+function avoidGameBox(){
+  const rect=document.getElementById("console").getBoundingClientRect();
+  flowers.forEach(f=>{
+    const fx=f.offsetLeft;
+    const fy=f.offsetTop;
+    if(
+      fx>rect.left-80 &&
+      fx<rect.right+80 &&
+      fy>rect.top-80 &&
+      fy<rect.bottom+80
+    ){
+      f.style.opacity=.1;
+    }else{
+      f.style.opacity=.6;
+    }
+  });
+}
+setInterval(avoidGameBox,200);
+
+/* ================= START ================= */
+document.getElementById("startBtn").onclick=()=>{
+  document.getElementById("startBtn").style.display="none";
+  document.getElementById("console").style.display="block";
+  startGame();
+};
+
+/* ================= GAME ================= */
+let score=0;
+let miss=0;
+let speed=1.6;
+let spawn=850;
+
+const screen=document.getElementById("screen");
+const basket=document.getElementById("basket");
+
+document.addEventListener("mousemove",e=>{
+  const rect=screen.getBoundingClientRect();
+  let x=e.clientX-rect.left;
+  x=Math.max(0,Math.min(rect.width-90,x));
+  basket.style.left=x+"px";
+});
+
+function dropKiss(){
+  const kiss=document.createElement("img");
+  kiss.src="kiss.png";
+  kiss.className="kiss";
+  kiss.style.left=Math.random()*85+"%";
+  kiss.style.top="-40px";
+  screen.appendChild(kiss);
+  
+
+  let y=0;
+  const fall=setInterval(()=>{
+    y+=speed;
+    kiss.style.top=y+"px";
+
+    const kissRect=kiss.getBoundingClientRect();
+    const basketRect=basket.getBoundingClientRect();
+
+    if(
+      kissRect.bottom>=basketRect.top &&
+      kissRect.left<basketRect.right &&
+      kissRect.right>basketRect.left
+    ){
+      score++;
+      document.getElementById("score").innerText="💋 "+score;
+      document.getElementById("catchSound").play();
+      kiss.remove();
+      clearInterval(fall);
+
+      speed+=0.35;                     // faster fall increase
+      spawn=Math.max(120,spawn-45);    // faster spawn (more objects)
+    }
+
+    if(kissRect.top > screen.getBoundingClientRect().bottom){
+  miss++;
+  document.getElementById("miss").innerText="Miss "+miss;
+  document.getElementById("missSound").play();
+  kiss.remove();
+  clearInterval(fall);
+}
+
+    if(miss>=3){
+  clearInterval(gameLoop);
+  endGame();
+}
+
+  },16);
+}
+
+let gameLoop;
+
+function startGame(){
+  function loop(){
+    dropKiss();
+    gameLoop=setTimeout(loop,spawn);
+  }
+  loop();
+}
+
+/* ================= WIN EFFECT ================= */
+function kissRain(){
+  for(let i=0;i<45;i++){
+    const k=document.createElement("img");
+    k.src="kiss.png";
+    k.className="kiss";
+    k.style.left=Math.random()*screen.offsetWidth+"px";
+    k.style.top="-50px";
+    screen.appendChild(k);
+
+    let y=-50;
+    const fall=setInterval(()=>{
+      y+=4;
+      k.style.top=y+"px";
+      if(y>screen.offsetHeight){
+        k.remove();
+        clearInterval(fall);
+      }
+    },16);
+  }
+}
+
+/* ================= RESULT ================= */
+function endGame(){
+
+  document.getElementById("console").style.display="none";
+
+  const result=document.getElementById("result");
+  const face=document.getElementById("face");
+  const msg=document.getElementById("message");
+  const final=document.getElementById("finalScore");
+
+  result.style.display="block";
+
+  final.innerText="You caught "+score+" kisses 💋";
+
+
+  /* ================= SECRET EASTER EGG ================= */
+  if(score<=2){
+    face.src="kiss-secret.png";
+    msg.innerText="I know cutie pie u don't like giving me kisses in real life, but it's a game. So give me my kisses.";
+    return;   // stops normal messages from running
+  }
+  /* ==================================================== */
+
+
+  if(score<=5){
+    face.src="kiss-low.png";
+    msg.innerText="Aww… shy kisses. I’ll steal more 💗";
+  }
+  else if(score<=15){
+    face.src="kiss-mid.png";
+    msg.innerText="That was sweet… I felt those 😌💋";
+  }
+  else{
+    face.src="kiss-high.png";
+    msg.innerText="Too many kisses… I’m melting ❤️";
+  }
+
+}
+</script>
+</body>
+</html>
